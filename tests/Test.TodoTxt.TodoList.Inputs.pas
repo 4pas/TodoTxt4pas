@@ -1,4 +1,35 @@
-unit Test.Mv.Todo.TodoList.Inputs;
+unit Test.TodoTxt.TodoList.Inputs;
+
+{
+  Copyright (c) 2025 marvotron.de
+
+  This Source Code is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+  This file incorporates work covered by the following copyright and
+  permission notice:
+
+    Original Copyright (c) 2011 John Hobbs
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    THE SOFTWARE
+}
 
 interface
 
@@ -7,8 +38,8 @@ uses
     System.SysUtils,
     System.Classes,
     System.Generics.Collections,
-    Mv.Todo.TodoList,
-    Mv.Todo.TodoItem;
+    TodoTxt.TodoList,
+    TodoTxt.TodoItem;
 
 type
     [TestFixture]
@@ -69,7 +100,7 @@ var
     TodoList: ITodoList;
     Lines: TArray<string>;
 begin
-    TodoList := TITodoList.Create as ITodoList;
+    TodoList := TITodoList.Create;
     try
         Lines := LinesFromString('first item' + sLineBreak + 'second item');
         TodoList.ParseFromLines(Lines);
@@ -91,7 +122,7 @@ var
     TodoList: ITodoList;
     Lines: TArray<string>;
 begin
-    TodoList := TITodoList.Create as ITodoList;
+    TodoList := TITodoList.Create;
     try
         Lines := LinesFromString('first item' + sLineBreak + 'second item' + sLineBreak + sLineBreak + 'third item' + sLineBreak + sLineBreak);
         TodoList.ParseFromLines(Lines);
@@ -113,7 +144,7 @@ var
     TodoList: ITodoList;
     InputArray: TArray<string>;
 begin
-    TodoList := TITodoList.Create as ITodoList;
+    TodoList := TITodoList.Create;
     try
         InputArray := TArray<string>.Create('first item', 'second item', 'third item');
         TodoList.ParseFromLines(InputArray);
@@ -135,7 +166,7 @@ var
     TodoList: ITodoList;
     InputArray: TArray<string>;
 begin
-    TodoList := TITodoList.Create as ITodoList;
+    TodoList := TITodoList.Create;
     try
         InputArray := TArray<string>.Create('first item', '', 'second item', '   ', #9, 'third item');
         TodoList.ParseFromLines(InputArray);

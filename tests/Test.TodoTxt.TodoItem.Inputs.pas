@@ -1,4 +1,35 @@
-unit Test.Mv.Todo.TodoItem.Inputs;
+unit Test.TodoTxt.TodoItem.Inputs;
+
+{
+  Copyright (c) 2025 marvotron.de
+
+  This Source Code is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+  This file incorporates work covered by the following copyright and
+  permission notice:
+
+    Original Copyright (c) 2011 John Hobbs
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    THE SOFTWARE
+}
 
 interface
 
@@ -6,7 +37,7 @@ uses
     DUnitX.TestFramework,
     System.SysUtils,
     System.DateUtils,
-    Mv.Todo.TodoItem;
+    TodoTxt.TodoItem;
 
 type
     [TestFixture]
@@ -24,8 +55,8 @@ type
 
 implementation
 
-const
-    NO_DATE: TDateTime = 0;
+uses
+    Mv.StringList;
 
 (*
 Original TypeScript file: Item.inputs.test.ts
@@ -118,16 +149,16 @@ procedure TTestTodoItemInputs.Constructor_Basic;
 var
     ItemObj: ITodoItem;
 begin
-    ItemObj := TITodoItem.Create('Just the body.') as ITodoItem;
+    ItemObj := TITodoItem.Create('Just the body.');
 
     Assert.IsFalse(ItemObj.Complete);
     Assert.AreEqual('', ItemObj.Priority);
     Assert.AreEqual(NO_DATE, ItemObj.Created);
     Assert.AreEqual(NO_DATE, ItemObj.Completed);
     Assert.AreEqual('Just the body.', ItemObj.Body);
-    Assert.AreEqual(0, Length(ItemObj.Projects));
-    Assert.AreEqual(0, Length(ItemObj.Contexts));
-    Assert.AreEqual(0, Length(ItemObj.Extensions));
+    Assert.AreEqual(0, ItemObj.GetProjects.Count);
+    Assert.AreEqual(0, ItemObj.GetContexts.Count);
+    Assert.AreEqual(0, Length(ItemObj.GetExtensions));
 end;
 
 (* Original test: Constructor › Complete *)
@@ -137,7 +168,7 @@ var
     CreatedDate: TDateTime;
     CompletedDate: TDateTime;
 begin
-    ItemObj := TITodoItem.Create('x (A) 2016-01-03 2016-01-02 measure space for +chapelShelving @chapel due:2016-01-04') as ITodoItem;
+    ItemObj := TITodoItem.Create('x (A) 2016-01-03 2016-01-02 measure space for +chapelShelving @chapel due:2016-01-04');
 
     Assert.IsTrue(ItemObj.Complete);
     Assert.AreEqual('A', ItemObj.Priority);
@@ -151,26 +182,26 @@ begin
     Assert.AreEqual(CompletedDate, ItemObj.Completed);
     Assert.AreEqual('measure space for +chapelShelving @chapel due:2016-01-04', ItemObj.Body);
 
-    Assert.AreEqual(1, Length(ItemObj.Contexts));
-    Assert.AreEqual('chapel', ItemObj.Contexts[0]);
+    Assert.AreEqual(1, ItemObj.GetContexts.Count);
+    Assert.AreEqual('chapel', ItemObj.GetContexts[0]);
 
-    Assert.AreEqual(1, Length(ItemObj.Projects));
-    Assert.AreEqual('chapelShelving', ItemObj.Projects[0]);
+    Assert.AreEqual(1, ItemObj.GetProjects.Count);
+    Assert.AreEqual('chapelShelving', ItemObj.GetProjects[0]);
 
-    Assert.AreEqual(1, Length(ItemObj.Extensions));
-    Assert.AreEqual('due', ItemObj.Extensions[0].Key);
-    Assert.AreEqual('2016-01-04', ItemObj.Extensions[0].Value);
+    Assert.AreEqual(1, Length(ItemObj.GetExtensions));
+    Assert.AreEqual('due', ItemObj.GetExtensions[0].Key);
+    Assert.AreEqual('2016-01-04', ItemObj.GetExtensions[0].Value);
 end;
 
 (* Original test: parse › Resets everything *)
 procedure TTestTodoItemInputs.Parse_ResetsEverything;
 var
     ItemObj: ITodoItem;
-    Ctxs: TArray<string>;
-    Projs: TArray<string>;
-    Exts: TArray<TTrackedExtension>;
+    Ctxs: IStringList;
+    Projs: IStringList;
+    Exts: TExtensionArray;
 begin
-    ItemObj := TITodoItem.Create('x (A) 2016-01-03 2016-01-02 measure space for +chapelShelving @chapel due:2016-01-04') as ITodoItem;
+    ItemObj := TITodoItem.Create('x (A) 2016-01-03 2016-01-02 measure space for +chapelShelving @chapel due:2016-01-04');
     ItemObj.Parse('Hello');
 
     Assert.IsFalse(ItemObj.Complete);
@@ -179,12 +210,12 @@ begin
     Assert.AreEqual(NO_DATE, ItemObj.Completed);
     Assert.AreEqual('Hello', ItemObj.Body);
 
-    Ctxs := ItemObj.Contexts;
-    Projs := ItemObj.Projects;
-    Exts := ItemObj.Extensions;
+    Ctxs := ItemObj.GetContexts;
+    Projs := ItemObj.GetProjects;
+    Exts := ItemObj.GetExtensions;
 
-    Assert.AreEqual(0, Length(Ctxs));
-    Assert.AreEqual(0, Length(Projs));
+    Assert.AreEqual(0, Ctxs.Count);
+    Assert.AreEqual(0, Projs.Count);
     Assert.AreEqual(0, Length(Exts));
 end;
 

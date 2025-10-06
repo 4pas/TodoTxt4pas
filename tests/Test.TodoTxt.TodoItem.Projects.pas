@@ -1,11 +1,42 @@
-unit Test.Mv.Todo.TodoItem.Projects;
+unit Test.TodoTxt.TodoItem.Projects;
+
+{
+  Copyright (c) 2025 marvotron.de
+
+  This Source Code is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+  This file incorporates work covered by the following copyright and
+  permission notice:
+
+    Original Copyright (c) 2011 John Hobbs
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    THE SOFTWARE
+}
 
 interface
 
 uses
     DUnitX.TestFramework,
     System.SysUtils,
-    Mv.Todo.TodoItem;
+    TodoTxt.TodoItem;
 
 type
     [TestFixture]
@@ -54,8 +85,8 @@ var
     Item: ITodoItem;
     Projs: TArray<string>;
 begin
-    Item := TITodoItem.Create('Hello @home with +goals and +projects and +goals extensions:todo') as ITodoItem;
-    Projs := Item.Projects;
+    Item := TITodoItem.Create('Hello @home with +goals and +projects and +goals extensions:todo');
+    Projs := Item.GetProjects.ToStringArray;
     Assert.AreEqual(2, Length(Projs));
     Assert.AreEqual('goals', Projs[0]);
     Assert.AreEqual('projects', Projs[1]);
@@ -74,8 +105,8 @@ var
     Item: ITodoItem;
     Projs: TArray<string>;
 begin
-    Item := TITodoItem.Create('A small computation: 1+1 = 2') as ITodoItem;
-    Projs := Item.Projects;
+    Item := TITodoItem.Create('A small computation: 1+1 = 2');
+    Projs := Item.GetProjects.ToStringArray;
     Assert.AreEqual(0, Length(Projs));
 end;
 
@@ -92,8 +123,8 @@ var
     Item: ITodoItem;
     Projs: TArray<string>;
 begin
-    Item := TITodoItem.Create('+goals Do the thing') as ITodoItem;
-    Projs := Item.Projects;
+    Item := TITodoItem.Create('+goals Do the thing');
+    Projs := Item.GetProjects.ToStringArray;
     Assert.AreEqual(1, Length(Projs));
     Assert.AreEqual('goals', Projs[0]);
 end;
@@ -114,9 +145,9 @@ var
     Projs: TArray<string>;
 begin
     SampleCompleted := 'x (Z) 2022-10-17 We should keep +todoItems in their @place when rendering out due:2022-10-22';
-    Item := TITodoItem.Create(SampleCompleted) as ITodoItem;
+    Item := TITodoItem.Create(SampleCompleted);
     Item.AddProject('rewrite');
-    Projs := Item.Projects;
+    Projs := Item.GetProjects.ToStringArray;
     Assert.AreEqual(2, Length(Projs));
     Assert.AreEqual('todoItems', Projs[0]);
     Assert.AreEqual('rewrite', Projs[1]);
@@ -138,9 +169,9 @@ var
     Projs: TArray<string>;
 begin
     SampleCompleted := 'x (Z) 2022-10-17 We should keep +todoItems in their @place when rendering out due:2022-10-22';
-    Item := TITodoItem.Create(SampleCompleted) as ITodoItem;
+    Item := TITodoItem.Create(SampleCompleted);
     Item.AddProject('todoItems');
-    Projs := Item.Projects;
+    Projs := Item.GetProjects.ToStringArray;
     Assert.AreEqual(1, Length(Projs));
     Assert.AreEqual('todoItems', Projs[0]);
 end;
@@ -159,7 +190,7 @@ var
     Item: ITodoItem;
     BodyStr: string;
 begin
-    Item := TITodoItem.Create('Hello') as ITodoItem;
+    Item := TITodoItem.Create('Hello');
     Item.AddProject('world');
     BodyStr := Item.Body;
     Assert.AreEqual('Hello +world', BodyStr);
@@ -179,9 +210,9 @@ var
     Item: ITodoItem;
     Projs: TArray<string>;
 begin
-    Item := TITodoItem.Create('Hello @home with +goals and +projects and +goals extensions:todo') as ITodoItem;
+    Item := TITodoItem.Create('Hello @home with +goals and +projects and +goals extensions:todo');
     Item.RemoveProject('goals');
-    Projs := Item.Projects;
+    Projs := Item.GetProjects.ToStringArray;
     Assert.AreEqual(1, Length(Projs));
     Assert.AreEqual('projects', Projs[0]);
 end;
@@ -200,9 +231,9 @@ var
     Item: ITodoItem;
     Projs: TArray<string>;
 begin
-    Item := TITodoItem.Create('Hello @home with +goals and +projects and +goals extensions:todo') as ITodoItem;
+    Item := TITodoItem.Create('Hello @home with +goals and +projects and +goals extensions:todo');
     Item.RemoveProject('nothing');
-    Projs := Item.Projects;
+    Projs := Item.GetProjects.ToStringArray;
     Assert.AreEqual(2, Length(Projs));
     Assert.AreEqual('goals', Projs[0]);
     Assert.AreEqual('projects', Projs[1]);
@@ -222,7 +253,7 @@ var
     Item: ITodoItem;
     BodyStr: string;
 begin
-    Item := TITodoItem.Create('Hello @home with +goals and +projects and +goals extensions:todo') as ITodoItem;
+    Item := TITodoItem.Create('Hello @home with +goals and +projects and +goals extensions:todo');
     Item.RemoveProject('goals');
     BodyStr := Item.Body;
     Assert.AreEqual('Hello @home with and +projects and extensions:todo', BodyStr);

@@ -1,4 +1,51 @@
-unit Mv.Todo.TodoList;
+unit TodoTxt.TodoList;
+
+{
+  Copyright (c) 2025 marvotron.de
+
+  This Source Code is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+  This file incorporates work covered by the following copyright and
+  permission notice:
+
+    Original Copyright (c) 2011 John Hobbs
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    THE SOFTWARE
+
+
+  TodoTxt4pas
+  -----------
+
+  This is a port of src/List.ts from jsTodoTxt to Delphi / Pascal
+
+  The initial port was mainly done via ChatGpt: https://chatgpt.com/canvas/shared/68d16f8c50c881918a4807840450f385
+
+  The following restrictions have been set for this port:
+    * retain the original order structure and comments whereever possible to be able to compare the original
+      code with the ported code via diff
+
+  About the port
+    * Start -> StartDate, End -> EndDate have been renamed (keyword collision)
+}
+
 
 interface
 
@@ -9,37 +56,28 @@ uses
     System.RegularExpressions,
     System.DateUtils,
     Mv.StringList,
-    Mv.Todo.TodoItem;
+    TodoTxt.TodoItem;
 
-(*
-  Original file: src/List.ts (jsTodoTxt) - MIT License
-  Port notes & changes:
-  - TOptionalDateRange renamed to TDateRange.
-    * Start -> StartDate, End -> EndDate
-    * CreateSelectAll sets StartDate and EndDate to 0.0 (select all).
-    * HasStartDate / HasEndDate are computed: True when date is present (StartDate <> 0).
-  - TTodoListFilter exposes properties. Setting a property that represents a filter value
-    will set the corresponding HasXxx flag to True (e.g. setting Complete sets HasComplete := True).
-  - Variable names use PascalCase.
-  - Other logic follows the original List.ts ordering and semantics.
-*)
 
 type
-    // TDateRange: maps original DateRange | null semantics
+    /// TDateRange: defines a date range
+    /// TDateRange uses TDate(0.0) = NO_DATE for no value
+    /// TDateRange.CreateSelectAll sets StartDate and EndDate to NO_DATE
+    /// TDateRange.HasStartDate / TDateRange.HasEndDate are computed: True when date is set (NO_DATE is a valid value).
     TDateRange = record
         StartDate: TDateTime; // 0.0 = not set / null
         EndDate: TDateTime;   // 0.0 = not set / null
+        class function CreateRange(const AStartDate, AEndDate: TDateTime): TDateRange; static;
         class function CreateSelectAll: TDateRange; static; // both zero -> select all
         function HasStartDate: Boolean;
         function HasEndDate: Boolean;
-        class function CreateRange(const AStartDate, AEndDate: TDateTime): TDateRange; static;
-        class function CreateIsNull: TDateRange; static; // helper to express explicit null (both zero)
     end;
 
     // Extension filter function type
     TExtensionFilterFunction = reference to function(const AExtensions: TArray<TTrackedExtension>): Boolean;
 
-    // ListFilter analog
+
+    /// record to compose filter properties. HasXxx flag is set if property has been set.
     TTodoListFilter = record
     private
         // complete
@@ -134,9 +172,9 @@ type
         function ToString: string;
 
         function Items: TArray<TTodoListItem>;
-        function Projects: IStringList;
-        function Contexts: IStringList;
-        function GetExtensions: IStringList;
+        function GetProjects: IStringList;
+        function GetContexts: IStringList;
+        function GetExtensionKeys: IStringList;
         function GetExtensionValues(const AExtension: string): IStringList; // returns unique values for the key
 
         function Filter(const AFilter: TTodoListFilter): TArray<TTodoListItem>;
@@ -158,9 +196,9 @@ type
         function ToString: string; override;
 
         function Items: TArray<TTodoListItem>;
-        function Projects: IStringList;
-        function Contexts: IStringList;
-        function GetExtensions: IStringList;
+        function GetProjects: IStringList;
+        function GetContexts: IStringList;
+        function GetExtensionKeys: IStringList;
         function GetExtensionValues(const AExtension: string): IStringList;
 
         function Filter(const AFilter: TTodoListFilter): TArray<TTodoListItem>;
@@ -173,12 +211,14 @@ function FilterDateRange(const ADate: TDateTime; const ARange: TDateRange): Bool
 
 implementation
 
-{ TDateRange }
+{*****************************************************************************************************************}
+{$region 'TDateRange'}
+{*****************************************************************************************************************}
 
 class function TDateRange.CreateSelectAll: TDateRange;
 begin
-    Result.StartDate := 0;
-    Result.EndDate := 0;
+    Result.StartDate := NO_DATE;
+    Result.EndDate := NO_DATE;
 end;
 
 class function TDateRange.CreateRange(const AStartDate, AEndDate: TDateTime): TDateRange;
@@ -187,24 +227,22 @@ begin
     Result.EndDate := AEndDate;
 end;
 
-class function TDateRange.CreateIsNull: TDateRange;
-begin
-    // explicit null expressed with StartDate = 0 and EndDate = 0
-    Result.StartDate := 0;
-    Result.EndDate := 0;
-end;
-
 function TDateRange.HasStartDate: Boolean;
 begin
-    Result := (StartDate <> 0);
+    Result := (StartDate <> NO_DATE);
 end;
 
 function TDateRange.HasEndDate: Boolean;
 begin
-    Result := (EndDate <> 0);
+    Result := (EndDate <> NO_DATE);
 end;
 
-{ TTodoListFilter }
+{$endregion 'TDateRange'}
+
+
+{*****************************************************************************************************************}
+{$region 'TTodoListFilter'}
+{*****************************************************************************************************************}
 
 class function TTodoListFilter.CreateEmpty: TTodoListFilter;
 begin
@@ -322,7 +360,12 @@ begin
         FExtensionKeys[i] := LowerCase(AValue[i]);
 end;
 
+{$endregion 'TTodoListFilter'}
+
+
+{*****************************************************************************************************************}
 { TITodoList }
+{*****************************************************************************************************************}
 
 constructor TITodoList.Create;
 begin
@@ -353,7 +396,7 @@ begin
         Sl.Text := AInput;
         SetLength(Lines, Sl.Count);
         for I := 0 to Sl.Count - 1 do
-            Lines[I] := Sl[I];
+          Lines[I] := Sl[I];
     finally
         Sl.Free;
     end;
@@ -394,7 +437,7 @@ begin
     Parts := TList<string>.Create;
     try
         for I := 0 to FItems.Count - 1 do
-            Parts.Add(FItems[I].ToString);
+          Parts.Add(FItems[I].ToString);
         Result := String.Join(sLineBreak, Parts.ToArray);
     finally
         Parts.Free;
@@ -425,22 +468,23 @@ end;
         return [
         ...
 *)
-function TITodoList.Projects: IStringList;
+function TITodoList.GetProjects: IStringList;
 var
     Dict: TDictionary<string, Boolean>;
     I, J: Integer;
-    Arr: TArray<string>;
+    ItemProjects: IStringList;
     Proj: string;
 begin
+    //TODO: Check: I think THashedStringList should be more efficient for the small number of entries
     Dict := TDictionary<string, Boolean>.Create;
     Result := TIStringList.Create;
     try
         for I := 0 to FItems.Count - 1 do
         begin
-            Arr := FItems[I].Projects;
-            for J := 0 to Length(Arr) - 1 do
+            ItemProjects := FItems[I].GetProjects;
+            for J := 0 to ItemProjects.Count - 1 do
             begin
-                Proj := Arr[J];
+                Proj := ItemProjects[J];
                 if not Dict.ContainsKey(Proj) then
                 begin
                     Dict.Add(Proj, True);
@@ -453,28 +497,30 @@ begin
     end;
 end;
 
+//TODO: code duplication with GetContexts
 (*
     original:
     contexts(): string[] {
         return [
         ...
 *)
-function TITodoList.Contexts: IStringList;
+function TITodoList.GetContexts: IStringList;
 var
     Dict: TDictionary<string, Boolean>;
     I, J: Integer;
-    Arr: TArray<string>;
+    ItemContexts: IStringList;
     Ctx: string;
 begin
+    //TODO: Check: I think THashedStringList should be more efficient for the small number of entries
     Dict := TDictionary<string, Boolean>.Create;
     Result := TIStringList.Create;
     try
         for I := 0 to FItems.Count - 1 do
         begin
-            Arr := FItems[I].Contexts;
-            for J := 0 to Length(Arr) - 1 do
+            ItemContexts := FItems[I].GetContexts;
+            for J := 0 to ItemContexts.Count - 1 do
             begin
-                Ctx := Arr[J];
+                Ctx := ItemContexts[J];
                 if not Dict.ContainsKey(Ctx) then
                 begin
                     Dict.Add(Ctx, True);
@@ -492,34 +538,17 @@ end;
     extensions(): KeysForExtensions {
         const ret: KeysForExtensions = {};
         ...
+    @return a (ordered) string list of the keys
 *)
-function TITodoList.GetExtensions: IStringList;
+function TITodoList.GetExtensionKeys: IStringList;
 var
-    DictKeys: TDictionary<string, Boolean>;
-    I, J: Integer;
-    Exts: TArray<TTrackedExtension>;
-    Key: string;
+    I: Integer;
 begin
-    DictKeys := TDictionary<string, Boolean>.Create;
-    Result := TIStringList.Create;
-    try
-        for I := 0 to FItems.Count - 1 do
-        begin
-            Exts := FItems[I].Extensions;
-            for J := 0 to Length(Exts) - 1 do
-            begin
-                Key := Exts[J].Key;
-                if not DictKeys.ContainsKey(Key) then
-                begin
-                    DictKeys.Add(Key, True);
-                    Result.Add(Key);
-                end;
-            end;
-        end;
-    finally
-        DictKeys.Free;
-    end;
+    Result := TIStringList.CreateIgnoreDuplicates;  //ordered
+    for I := 0 to FItems.Count - 1 do
+      Result.AddIStringList(FItems[I].GetExtensionKeys());
 end;
+
 
 function TITodoList.GetExtensionValues(const AExtension: string): IStringList;
 var
@@ -531,12 +560,13 @@ var
 begin
     LKey := LowerCase(AExtension);
 
+    //TODO: Check: I think THashedStringList should be more efficient for the small number of entries
     DictValues := TDictionary<string, Boolean>.Create;
     Result := TIStringList.Create;
     try
         for I := 0 to FItems.Count - 1 do
         begin
-            Exts := FItems[I].Extensions;
+            Exts := FItems[I].GetExtensions;
             for J := 0 to Length(Exts) - 1 do
             begin
                 if Exts[J].Key = LKey then
@@ -567,7 +597,7 @@ var
     ResList: TList<TTodoListItem>;
     I, J: Integer;
     Item: ITodoItem;
-    ContextsArr, ProjectsArr: TArray<string>;
+    Contexts, Projects: IStringList;
     Exts: TArray<TTrackedExtension>;
     Ok: Boolean;
 
@@ -639,15 +669,17 @@ begin
             if not Ok then Continue;
 
             // contexts
-            ContextsArr := Item.Contexts;
+            Contexts := Item.GetContexts;
             if Length(AFilter.ContextsAnd) > 0 then
             begin
                 for J := 0 to Length(AFilter.ContextsAnd) - 1 do
-                    if not ArrayContains(ContextsArr, AFilter.ContextsAnd[J]) then
+                begin
+                    if Contexts.IndexOf(AFilter.ContextsAnd[J]) = -1 then
                     begin
                         Ok := False;
                         Break;
                     end;
+                end;
             end;
             if not Ok then Continue;
 
@@ -655,35 +687,41 @@ begin
             begin
                 Ok := False;
                 for J := 0 to Length(AFilter.ContextsOr) - 1 do
-                    if ArrayContains(ContextsArr, AFilter.ContextsOr[J]) then
+                begin
+                    if Contexts.IndexOf(AFilter.ContextsOr[J]) >= 0 then
                     begin
                         Ok := True;
                         Break;
                     end;
+                end;
             end;
             if not Ok then Continue;
 
             if Length(AFilter.ContextsNot) > 0 then
             begin
                 for J := 0 to Length(AFilter.ContextsNot) - 1 do
-                    if ArrayContains(ContextsArr, AFilter.ContextsNot[J]) then
+                begin
+                    if Contexts.IndexOf(AFilter.ContextsNot[J]) >= 0 then
                     begin
                         Ok := False;
                         Break;
                     end;
+                end;
             end;
             if not Ok then Continue;
 
             // projects
-            ProjectsArr := Item.Projects;
+            Projects := Item.GetProjects;
             if Length(AFilter.ProjectsAnd) > 0 then
             begin
                 for J := 0 to Length(AFilter.ProjectsAnd) - 1 do
-                    if not ArrayContains(ProjectsArr, AFilter.ProjectsAnd[J]) then
+                begin
+                    if Projects.IndexOf(AFilter.ProjectsAnd[J]) = -1 then
                     begin
                         Ok := False;
                         Break;
                     end;
+                end;
             end;
             if not Ok then Continue;
 
@@ -691,35 +729,39 @@ begin
             begin
                 Ok := False;
                 for J := 0 to Length(AFilter.ProjectsOr) - 1 do
-                    if ArrayContains(ProjectsArr, AFilter.ProjectsOr[J]) then
+                begin
+                    if Projects.IndexOf(AFilter.ProjectsOr[J]) >= 0 then
                     begin
                         Ok := True;
                         Break;
                     end;
+                end;
             end;
             if not Ok then Continue;
 
             if Length(AFilter.ProjectsNot) > 0 then
             begin
                 for J := 0 to Length(AFilter.ProjectsNot) - 1 do
-                    if ArrayContains(ProjectsArr, AFilter.ProjectsNot[J]) then
+                begin
+                    if Projects.IndexOf(AFilter.ProjectsNot[J]) >= 0 then
                     begin
                         Ok := False;
                         Break;
                     end;
+                end;
             end;
             if not Ok then Continue;
 
             // extensions
             if AFilter.HasExtensionFunc then
             begin
-                Exts := Item.Extensions;
+                Exts := Item.GetExtensions;
                 if not AFilter.ExtensionFunc(Exts) then
-                    Ok := False;
+                  Ok := False;
             end
             else if Length(AFilter.ExtensionKeys) > 0 then
             begin
-                Exts := Item.Extensions;
+                Exts := Item.GetExtensions;
                 var FoundKey: Boolean := False;
                 for J := 0 to Length(Exts) - 1 do
                 begin
@@ -730,7 +772,7 @@ begin
                     end;
                 end;
                 if not FoundKey then
-                    Ok := False;
+                  Ok := False;
             end;
             if not Ok then Continue;
 
@@ -776,11 +818,6 @@ function filterDateRange(date: Date | null, range: DateRange | null): boolean {
 *)
 function FilterDateRange(const ADate: TDateTime; const ARange: TDateRange): Boolean;
 begin
-//    // Note: Item port uses 0.0 to indicate 'null' (no date)
-//    // ARange with both StartDate/EndDate == 0 means "select all" (no filtering)
-//    if (ARange.StartDate = 0) and (ARange.EndDate = 0) then
-//        Exit(True);
-
     // if user explicitly wants null:
     if (ARange.StartDate = 0) and (ARange.EndDate = 0) then
     begin

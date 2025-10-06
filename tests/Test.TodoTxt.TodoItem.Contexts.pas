@@ -1,11 +1,42 @@
-unit Test.Mv.Todo.TodoItem.Contexts;
+unit Test.TodoTxt.TodoItem.Contexts;
+
+{
+  Copyright (c) 2025 marvotron.de
+
+  This Source Code is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+  This file incorporates work covered by the following copyright and
+  permission notice:
+
+    Original Copyright (c) 2011 John Hobbs
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    THE SOFTWARE
+}
 
 interface
 
 uses
     DUnitX.TestFramework,
     System.SysUtils,
-    Mv.Todo.TodoItem;
+    TodoTxt.TodoItem;
 
 const
     SampleCompleted: string =
@@ -48,6 +79,9 @@ type
 
 implementation
 
+uses
+    Mv.StringList;
+
 function ContainsString(const Arr: TArray<string>; const Value: string): Boolean;
 var
     I: Integer;
@@ -72,11 +106,11 @@ test('contexts › Deduplicated', (t) => {
 procedure TTestTodoItemContexts.Contexts_Deduplicated;
 var
     Item: ITodoItem;
-    Ctxs: TArray<string>;
+    Ctxs: IStringList;
 begin
-    Item := TITodoItem.Create('Hello @home and @work with +projects and @work extensions:todo') as ITodoItem;
-    Ctxs := Item.Contexts;
-    Assert.AreEqual(2, Length(Ctxs));
+    Item := TITodoItem.Create('Hello @home and @work with +projects and @work extensions:todo');
+    Ctxs := Item.GetContexts;
+    Assert.AreEqual(2, Ctxs.Count);
     Assert.AreEqual('home', Ctxs[0]);
     Assert.AreEqual('work', Ctxs[1]);
 end;
@@ -92,11 +126,11 @@ test('contexts › Does not parse email as context', (t) => {
 procedure TTestTodoItemContexts.Contexts_DoesNotParseEmailAsContext;
 var
     Item: ITodoItem;
-    Ctxs: TArray<string>;
+    Ctxs: IStringList;
 begin
-    Item := TITodoItem.Create('My email is me@example.com it is not a context') as ITodoItem;
-    Ctxs := Item.Contexts;
-    Assert.AreEqual(0, Length(Ctxs));
+    Item := TITodoItem.Create('My email is me@example.com it is not a context');
+    Ctxs := Item.GetContexts;
+    Assert.AreEqual(0, Ctxs.Count);
 end;
 
 (*
@@ -110,11 +144,11 @@ test('contexts › Parses context at start of line', (t) => {
 procedure TTestTodoItemContexts.Contexts_ParsesContextAtStartOfLine;
 var
     Item: ITodoItem;
-    Ctxs: TArray<string>;
+    Ctxs: IStringList;
 begin
-    Item := TITodoItem.Create('@home wash the dishes') as ITodoItem;
-    Ctxs := Item.Contexts;
-    Assert.AreEqual(1, Length(Ctxs));
+    Item := TITodoItem.Create('@home wash the dishes');
+    Ctxs := Item.GetContexts;
+    Assert.AreEqual(1, Ctxs.Count);
     Assert.AreEqual('home', Ctxs[0]);
 end;
 
@@ -130,12 +164,12 @@ test('addContext › Adds new contexts', (t) => {
 procedure TTestTodoItemContexts.AddContext_AddsNewContexts;
 var
     Item: ITodoItem;
-    Ctxs: TArray<string>;
+    Ctxs: IStringList;
 begin
-    Item := TITodoItem.Create(SampleCompleted) as ITodoItem;
+    Item := TITodoItem.Create(SampleCompleted);
     Item.AddContext('computer');
-    Ctxs := Item.Contexts;
-    Assert.AreEqual(2, Length(Ctxs));
+    Ctxs := Item.GetContexts;
+    Assert.AreEqual(2, Ctxs.Count);
     Assert.AreEqual('place', Ctxs[0]);
     Assert.AreEqual('computer', Ctxs[1]);
 end;
@@ -154,12 +188,12 @@ test('addContext › Does not add contexts which already exist', (t) => {
 procedure TTestTodoItemContexts.AddContext_DoesNotAddExisting;
 var
     Item: ITodoItem;
-    Ctxs: TArray<string>;
+    Ctxs: IStringList;
 begin
-    Item := TITodoItem.Create(SampleCompleted) as ITodoItem;
+    Item := TITodoItem.Create(SampleCompleted);
     Item.AddContext('place');
-    Ctxs := Item.Contexts;
-    Assert.AreEqual(1, Length(Ctxs));
+    Ctxs := Item.GetContexts;
+    Assert.AreEqual(1, Ctxs.Count);
     Assert.AreEqual('place', Ctxs[0]);
 end;
 
@@ -177,7 +211,7 @@ var
     Item: ITodoItem;
     BodyStr: string;
 begin
-    Item := TITodoItem.Create(SampleCompleted) as ITodoItem;
+    Item := TITodoItem.Create(SampleCompleted);
     Item.AddContext('computer');
     BodyStr := Item.Body;
     Assert.IsTrue(Pos('@computer', BodyStr) > 0);
@@ -195,12 +229,12 @@ test('removeContext › Removes contexts', (t) => {
 procedure TTestTodoItemContexts.RemoveContext_RemovesContexts;
 var
     Item: ITodoItem;
-    Ctxs: TArray<string>;
+    Ctxs: IStringList;
 begin
-    Item := TITodoItem.Create('Hello @home and @work with +projects and @work extensions:todo') as ITodoItem;
+    Item := TITodoItem.Create('Hello @home and @work with +projects and @work extensions:todo');
     Item.RemoveContext('work');
-    Ctxs := Item.Contexts;
-    Assert.AreEqual(1, Length(Ctxs));
+    Ctxs := Item.GetContexts;
+    Assert.AreEqual(1, Ctxs.Count);
     Assert.AreEqual('home', Ctxs[0]);
 end;
 
@@ -218,7 +252,7 @@ var
     Item: ITodoItem;
     BodyStr: string;
 begin
-    Item := TITodoItem.Create('Hello and world') as ITodoItem;
+    Item := TITodoItem.Create('Hello and world');
     Item.RemoveContext('work');
     BodyStr := Item.Body;
     Assert.AreEqual('Hello and world', BodyStr);
@@ -238,7 +272,7 @@ var
     Item: ITodoItem;
     BodyStr: string;
 begin
-    Item := TITodoItem.Create('Hello @home and @work with +projects and @work extensions:todo') as ITodoItem;
+    Item := TITodoItem.Create('Hello @home and @work with +projects and @work extensions:todo');
     Item.RemoveContext('work');
     BodyStr := Item.Body;
     Assert.AreEqual('Hello @home and with +projects and extensions:todo', BodyStr);
@@ -257,11 +291,11 @@ test('contexts › Does not parse email addresses', (t) => {
 procedure TTestTodoItemContexts.Contexts_DoesNotParseEmailAddresses;
 var
     Item: ITodoItem;
-    Ctxs: TArray<string>;
+    Ctxs: IStringList;
 begin
-    Item := TITodoItem.Create('me@example.com Hello @home and name@example.com with +projects extensions:todo') as ITodoItem;
-    Ctxs := Item.Contexts;
-    Assert.AreEqual(1, Length(Ctxs));
+    Item := TITodoItem.Create('me@example.com Hello @home and name@example.com with +projects extensions:todo');
+    Ctxs := Item.GetContexts;
+    Assert.AreEqual(1, Ctxs.Count);
     Assert.AreEqual('home', Ctxs[0]);
 end;
 

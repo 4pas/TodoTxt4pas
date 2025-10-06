@@ -1,4 +1,35 @@
-unit Test.Mv.Todo.TodoItem.Completed;
+unit Test.TodoTxt.TodoItem.Completed;
+
+{
+  Copyright (c) 2025 marvotron.de
+
+  This Source Code is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+  This file incorporates work covered by the following copyright and
+  permission notice:
+
+    Original Copyright (c) 2011 John Hobbs
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    THE SOFTWARE
+}
 
 interface
 
@@ -6,7 +37,7 @@ uses
     DUnitX.TestFramework,
     System.SysUtils,
     System.DateUtils,
-    Mv.Todo.TodoItem;
+    TodoTxt.TodoItem;
 
 type
     [TestFixture]
@@ -39,9 +70,6 @@ type
 
 implementation
 
-const
-    NO_DATE: TDateTime = 0;
-
 (*
 Original test: setCompleted › Adding with Date
 
@@ -61,7 +89,7 @@ var
     Due: TDateTime;
 begin
     // Ported from original test above
-    Item := TITodoItem.Create('2022-06-29 I have to do this.') as ITodoItem;
+    Item := TITodoItem.Create('2022-06-29 I have to do this.');
     Due := EncodeDate(2022, 7, 1); // JS new Date(2022,6,1) -> 2022-07-01
 
     Item.SetCompleted(Due);
@@ -91,7 +119,7 @@ var
     Due: TDateTime;
 begin
     // Ported from original test above
-    Item := TITodoItem.Create('I have to do this.') as ITodoItem;
+    Item := TITodoItem.Create('I have to do this.');
     Due := EncodeDate(2022, 7, 1);
 
     Item.SetCompleted(Due);
@@ -120,7 +148,7 @@ var
     Due: TDateTime;
 begin
     // Ported from original test above
-    Item := TITodoItem.Create('2022-06-29 I have to do this.') as ITodoItem;
+    Item := TITodoItem.Create('2022-06-29 I have to do this.');
     Item.SetCompleted('2022-07-01');
     Due := EncodeDate(2022, 7, 1);
 
@@ -148,7 +176,7 @@ var
     Due: TDateTime;
 begin
     // Ported from original test above
-    Item := TITodoItem.Create('1999-04-12 I have to do this.') as ITodoItem;
+    Item := TITodoItem.Create('1999-04-12 I have to do this.');
     Due := EncodeDate(2022, 7, 1);
 
     Item.SetCompleted(Due);
@@ -175,7 +203,7 @@ var
     Due: TDateTime;
 begin
     // Ported from original test above
-    Item := TITodoItem.Create('1999-04-12 I have to do this.') as ITodoItem;
+    Item := TITodoItem.Create('1999-04-12 I have to do this.');
     Item.SetCompleted('2022-07-01');
     Due := EncodeDate(2022, 7, 1);
 
@@ -199,7 +227,7 @@ var
     Item: ITodoItem;
 begin
     // Ported from original test above
-    Item := TITodoItem.Create('x 2022-06-01 1999-04-12 I have to do this.') as ITodoItem;
+    Item := TITodoItem.Create('x 2022-06-01 1999-04-12 I have to do this.');
     Item.SetCompletedNull; // no parameter -> clear completed
 
     Assert.AreEqual(NO_DATE, Item.Completed);
@@ -219,13 +247,13 @@ var
     Item: ITodoItem;
 begin
     // Ported from original test above
-    Item := TITodoItem.Create('x I have to do this.') as ITodoItem;
+    Item := TITodoItem.Create('x I have to do this.');
     Assert.WillRaise(
         procedure
         begin
             Item.SetCompleted('20220102');
         end,
-        Exception
+        ETodoListError
     );
 end;
 
@@ -244,7 +272,7 @@ var
     Item: ITodoItem;
 begin
     // Ported from original test above
-    Item := TITodoItem.Create('x 2022-06-01 1999-04-12 I have to do this.') as ITodoItem;
+    Item := TITodoItem.Create('x 2022-06-01 1999-04-12 I have to do this.');
     Item.ClearCompleted;
 
     Assert.AreEqual(NO_DATE, Item.Completed);

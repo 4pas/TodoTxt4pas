@@ -1,4 +1,61 @@
-unit Mv.Todo.TodoItem;
+unit TodoTxt.TodoItem;
+
+{
+  This project is a port of jsTodoTxt to Delphi / Pascal.
+  Instructions under https://www.mozilla.org/en-US/MPL/2.0/permissive-code-into-mpl/ were followed to include
+  this MIT licensed code.
+
+  Copyright (c) 2025 marvotron.de
+
+  This Source Code is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+  This file incorporates work covered by the following copyright and
+  permission notice:
+
+    Original Copyright (c) 2011 John Hobbs
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    THE SOFTWARE
+
+
+  TodoTxt4pas
+  -----------
+
+  This is a port of src/Item.ts from jsTodoTxt to Delphi / Pascal
+
+  The initial port was mainly done via ChatGpt: https://chatgpt.com/canvas/shared/68d16f8c50c881918a4807840450f385
+
+  The following restrictions have been set for this port:
+  * retain the original order structure and comments whereever possible to be able to compare the original
+    code with the ported code via diff
+
+  About the port
+  * Internal tracked tag/extension start indices are zero-based (matching JS indexOf / Match.Index) to better
+    match potential future changes
+  * 'null' dates in JS are represented by 0.0 (NO_DATE) in Delphi (and empty-string outputs).
+  * R_TODO, R_TAGS and R_DATE regular expressions implemented with TRegEx and the same patterns as original JS.
+  * ParseBody uses regex groups to obtain each tag and their start positions (zero-based) similar to JS.
+  * SetExtension/AddExtension/RemoveExtension implement logic from the JS original
+  * RemoveExtension creates spans and removes them sorted descending to avoid index shifts.
+
+}
 
 interface
 
@@ -8,24 +65,10 @@ uses
     System.Generics.Collections,
     System.RegularExpressions,
     System.DateUtils,
-    System.Math;
+    System.Math,
+    Mv.StringList;
 
-{
-  Original file: src/Item.ts (jsTodoTxt)
-  This unit is a faithful port of Item.ts:
-  - Block comments from the original were preserved and converted from /** ... */ to (* ... *).
-  - Function order follows the original exactly to ease diff/sync comparison.
-  - Interface name: ITodoItem; implementing object: TITodoItem (TInterfacedObject).
-  - Internal tracked tag/extension start indices are zero-based (matching JS indexOf / Match.Index).
-  - Dates use TDateTime; 'null' dates in JS are represented by 0.0 in Delphi (and empty-string outputs).
-  Port decisions:
-  - rTodo, rTags and rDate implemented with TRegEx and the same patterns as original JS.
-  - ParseBody uses regex groups to obtain each tag and their start positions (zero-based) similar to JS.
-  - CutOutSpans removes also the preceding space when available (same semantic as the original).
-  - SetExtension/AddExtension/RemoveExtension implement logic from the JS original; RemoveExtension
-    creates spans and removes them sorted descending to avoid index shifts.
-  - This unit intentionally keeps data structures and method order for a straightforward sync with the JS source.
-}
+
 
 type
     TSpan = record
@@ -68,6 +111,7 @@ type
         Value: string;
         StartPos: Integer; // zero-based
     end;
+    TExtensionArray = TArray<TTrackedExtension>;
 
     (**
      * Represents a single line in a todo.txt file.
@@ -104,15 +148,16 @@ type
         function Body: string;
         procedure SetBody(const ABody: string);
 
-        function Contexts: TArray<string>;
-        procedure AddContext(const ATag: string);
+        function GetContexts: IStringList;
+        function AddContext(const ATag: string): Boolean;
         procedure RemoveContext(const ATag: string);
 
-        function Projects: TArray<string>;
-        procedure AddProject(const ATag: string);
+        function GetProjects: IStringList;
+        function AddProject(const ATag: string): Boolean;
         procedure RemoveProject(const ATag: string);
 
-        function Extensions: TArray<TTrackedExtension>;
+        function GetExtensions: TExtensionArray;
+        function GetExtensionKeys: IStringList;
         procedure SetExtension(const AKey: string; const AValue: string);
         procedure AddExtension(const AKey: string; const AValue: string);
         procedure RemoveExtension(const AKey: string; const AValue: string = '');
@@ -143,12 +188,17 @@ type
 
         function DateFromString(const AInput: string): TDateTime;
         function DateToString(const ADate: TDateTime): string;
-        function ParseBody(const ABody: string;
-            out ResultContexts: TArray<TTrackedTag>;
-            out ResultProjects: TArray<TTrackedTag>;
-            out ResultExtensions: TArray<TTrackedExtension>): Boolean;
-        function CutOutSpans(const ABody: string; const ASpans: TArray<TSpan>): string;
-        function RemoveTag(const ABody: string; const ATags: TArray<TTrackedTag>; const ATag: string; out ResultNewBody: string): Boolean;
+        procedure ParseBody(const ABody: string;
+          ContextList: TList<TTrackedTag>;
+          ProjectList: TList<TTrackedTag>;
+          ExtList: TList<TTrackedExtension>);
+        function CutOutSpans(const ABody: string; const ASpans: TList<TSpan>): string;
+        procedure SortSpansDesc(Spans: TList<TSpan>);
+        function RemoveTag(const ABody: string; const ATags: TArray<TTrackedTag>; const ATag: string;
+          out ResultNewBody: string): Boolean;
+        function GetTagList(ATrackedTagList: TList<TTrackedTag>): IStringList;
+        function AddTag(const APrefix: Char; ATrackedTagList: TList<TTrackedTag>;
+          const ATag: string): Boolean;
     public
         constructor Create(const ALine: string = '');
         destructor Destroy; override;
@@ -183,28 +233,34 @@ type
         function Body: string;
         procedure SetBody(const ABody: string);
 
-        function Contexts: TArray<string>;
-        procedure AddContext(const ATag: string);
+        function GetContexts: IStringList;
+        function AddContext(const ATag: string): Boolean;
         procedure RemoveContext(const ATag: string);
 
-        function Projects: TArray<string>;
-        procedure AddProject(const ATag: string);
+        function GetProjects: IStringList;
+        function AddProject(const ATag: string): Boolean;
         procedure RemoveProject(const ATag: string);
 
-        function Extensions: TArray<TTrackedExtension>;
+        function GetExtensions: TExtensionArray;
+        function GetExtensionKeys: IStringList;
         procedure SetExtension(const AKey: string; const AValue: string);
         procedure AddExtension(const AKey: string; const AValue: string);
         procedure RemoveExtension(const AKey: string; const AValue: string = '');
     end;
+
+    ETodoListError = class(Exception)
+    end;
+
+
+const
+    NO_DATE: TDateTime = 0.0;
+
 
 implementation
 
 uses
     System.Generics.Defaults,
     Mv.LibBase;
-
-const
-    NO_DATE: TDateTime = 0.0;
 
 { TITodoItem }
 
@@ -216,8 +272,8 @@ begin
     FExtensions := TList<TTrackedExtension>.Create;
     FComplete := False;
     FPriority := '';
-    FCreated := 0;
-    FCompleted := 0;
+    FCreated := NO_DATE;
+    FCompleted := NO_DATE;
     FBody := '';
     if ALine <> '' then
       Parse(ALine);
@@ -236,28 +292,31 @@ original:
 function parseBody(body: string) {
     let start = 0;
     ...
- 
-Returns contexts, projects, extensions with start positions (zero-based),
-matching the original JS parseBody logic.
+set contexts, projects, extensions with start positions (zero-based),
 ------------------------------------------------------------------------------------------------------------------}
-function TITodoItem.ParseBody(const ABody: string;
-    out ResultContexts: TArray<TTrackedTag>;
-    out ResultProjects: TArray<TTrackedTag>;
-    out ResultExtensions: TArray<TTrackedExtension>): Boolean;
+procedure TITodoItem.ParseBody(const ABody: string;
+  ContextList: TList<TTrackedTag>;
+  ProjectList: TList<TTrackedTag>;
+  ExtList: TList<TTrackedExtension>);
 var
     Matches: TMatchCollection;
     Match: TMatch;
     Tag: string;
     StartPos: Integer;
-    ContextList: TList<TTrackedTag>;
-    ProjectList: TList<TTrackedTag>;
-    ExtList: TList<TTrackedExtension>;
     TT: TTrackedTag;
+    Ext: TTrackedExtension;
+    PosColon: Integer;
 begin
-    ContextList := TList<TTrackedTag>.Create;
-    ProjectList := TList<TTrackedTag>.Create;
-    ExtList := TList<TTrackedExtension>.Create;
-    try
+    Assert(Assigned(ContextList));
+    Assert(Assigned(ProjectList));
+    Assert(Assigned(ExtList));
+    //---
+    ContextList.Clear;
+    ProjectList.Clear;
+    ExtList.Clear;
+
+    if ABody <> '' then
+    begin
         Matches := TRegEx.Matches(ABody, R_TAGS);
         for Match in Matches do
         begin
@@ -280,36 +339,25 @@ begin
                         TT.StartPos := StartPos;
                         ProjectList.Add(TT);
                     end
-                    else
-                    begin
-                        var E: TTrackedExtension;
-                        var PosColon := Pos(':', Tag);
+                    else begin
+                        PosColon := Pos(':', Tag);
                         if PosColon > 0 then
                         begin
                             // store keys always in lowercase
-                            E.Key := LowerCase(Copy(Tag, 1, PosColon - 1));
-                            E.Value := Copy(Tag, PosColon + 1, MaxInt);
+                            Ext.Key := LowerCase(Copy(Tag, 1, PosColon - 1));
+                            Ext.Value := Copy(Tag, PosColon + 1, MaxInt);
                         end
                         else
                         begin
-                            E.Key := LowerCase(Tag);
-                            E.Value := '';
+                            Ext.Key := LowerCase(Tag);
+                            Ext.Value := '';
                         end;
-                        E.StartPos := StartPos;
-                        ExtList.Add(E);
+                        Ext.StartPos := StartPos;
+                        ExtList.Add(Ext);
                     end;
                 end;
             end;
-        end;
-
-        ResultContexts := ContextList.ToArray;
-        ResultProjects := ProjectList.ToArray;
-        ResultExtensions := ExtList.ToArray;
-        Result := True;
-    finally
-        ContextList.Free;
-        ProjectList.Free;
-        ExtList.Free;
+        end;    //for Match in Matches
     end;
 end;
 
@@ -327,9 +375,10 @@ var
 begin
     if AInput = '' then
       Exit(NO_DATE);
+
     Match := TRegEx.Match(AInput, R_DATE);
     if not Match.Success then
-        raise Exception.Create('Invalid Date Format');
+      raise ETodoListError.Create('Invalid Date Format');
     // parse components
     Y := StrToInt(Copy(AInput, 1, 4));
     M := StrToInt(Copy(AInput, 6, 2));
@@ -337,7 +386,7 @@ begin
     try
         Result := EncodeDate(Y, M, D);
     except
-        raise Exception.Create('Invalid Date Format');
+        raise ETodoListError.Create('Invalid Date Format');
     end;
 end;
 
@@ -355,8 +404,8 @@ begin
     // reset all fields
     FComplete := False;
     FPriority := '';
-    FCreated := 0;
-    FCompleted := 0;
+    FCreated := NO_DATE;
+    FCompleted := NO_DATE;
     FBody := '';
     FContexts.Clear;
     FProjects.Clear;
@@ -375,33 +424,21 @@ begin
     CreatedStr := '';
     CompletedStr := '';
 
-    //original code: for 2 dates Match.Groups[9].Success is true (even though )
-    //// group 9 is single created date when present
-    //if (Match.Groups.Count >= 10) and (Match.Groups[9].Success) then
-    //begin
-    //    CreatedStr := Match.Groups[9].Value;
-    //end
-    //else if (Match.Groups.Count >= 9) and (Match.Groups[7].Success) then
-    //begin
-    //    // pair: completed then created
-    //    CompletedStr := Match.Groups[7].Value;
-    //    CreatedStr := Match.Groups[8].Value;
-    //end;
     //RegEx is ((7) (8)|(9)) (7,8,9 match a date)
-    if Match.Groups[8].Success then      //8 is second date
+    if Match.Groups[8].Success then      //7 is first, 8 is second date
     begin
         // pair of dates: completed then created
         CompletedStr := Match.Groups[7].Value;
         CreatedStr := Match.Groups[8].Value;
     end;
-    //In Delphi Match.Groups[8].Success returns true, even if there is no value, therefore
+    //In Delphi Match.Groups[8].Success returns true, even if there is no value, therefore:
     if CreatedStr = '' then
       CreatedStr := Match.Groups[9].Value;  //9 is (single) first date
 
     FCreated := DateFromString(CreatedStr);
     FCompleted := DateFromString(CompletedStr);
 
-    SetBody(Match.Groups[10].Value);
+    SetBody(Match.Groups[10].Value);     //this parses FContexts, FProjects, FExtensions
 end;
 
 (*
@@ -501,7 +538,7 @@ procedure TITodoItem.SetComplete(const AComplete: Boolean);
 begin
     FComplete := AComplete;
     if not AComplete then
-        ClearCompleted;
+      ClearCompleted;
 end;
 
 (*
@@ -510,9 +547,9 @@ end;
 function TITodoItem.Priority: string;
 begin
     if FPriority = '' then
-        Result := ''
+      Result := ''
     else
-        Result := FPriority;
+      Result := FPriority;
 end;
 
 (*
@@ -528,10 +565,10 @@ begin
     if APriority <> '' then
     begin
         if Length(APriority) <> 1 then
-            raise Exception.Create('Invalid Priority');
+          raise ETodoListError.Create('Invalid Priority: ' + APriority);
         CharCode := Ord(UpCase(APriority[1]));
         if (CharCode < Ord('A')) or (CharCode > Ord('Z')) then
-            raise Exception.Create('Invalid Priority');
+          raise ETodoListError.Create('Invalid Priority: ' + APriority);
     end;
     FPriority := APriority;
 end;
@@ -576,18 +613,18 @@ end;
  *)
 procedure TITodoItem.SetCreated(const ADate: TDateTime);
 begin
-    if ADate <= 0 then
-        ClearCreated
+    if ADate = NO_DATE then
+      ClearCreated
     else
-        FCreated := ADate;
+      FCreated := ADate;
 end;
 
 procedure TITodoItem.SetCreated(const ADateString: string);
 begin
     if ADateString = '' then
-        ClearCreated
+      ClearCreated
     else
-        FCreated := DateFromString(ADateString);
+      FCreated := DateFromString(ADateString);
 end;
 
 procedure TITodoItem.SetCreatedNull;
@@ -604,8 +641,8 @@ end;
  *)
 procedure TITodoItem.ClearCreated;
 begin
-    FCreated := 0;
-    FCompleted := 0;
+    FCreated := NO_DATE;
+    FCompleted := NO_DATE;
     FComplete := False;
 end;
 
@@ -650,8 +687,8 @@ end;
  *)
 procedure TITodoItem.SetCompleted(const ADate: TDateTime);
 begin
-    if ADate <= 0 then
-        ClearCompleted
+    if ADate = NO_DATE then
+      ClearCompleted
     else
     begin
         FCompleted := ADate;
@@ -662,9 +699,9 @@ end;
 procedure TITodoItem.SetCompleted(const ADateString: string);
 begin
     if ADateString = '' then
-        ClearCompleted
+      ClearCompleted
     else
-        SetCompleted(DateFromString(ADateString));
+      SetCompleted(DateFromString(ADateString));
 end;
 
 (*
@@ -672,7 +709,7 @@ end;
  *)
 procedure TITodoItem.ClearCompleted;
 begin
-    FCompleted := 0;
+    FCompleted := NO_DATE;
 end;
 
 (*
@@ -694,42 +731,9 @@ end;
  * @param body A todo.txt description string.
  *)
 procedure TITodoItem.SetBody(const ABody: string);
-var
-    ContextsArr: TArray<TTrackedTag>;
-    ProjectsArr: TArray<TTrackedTag>;
-    ExtArr: TArray<TTrackedExtension>;
-    I: Integer;
 begin
-    if ABody = '' then
-    begin
-        FBody := '';
-        FContexts.Clear;
-        FProjects.Clear;
-        FExtensions.Clear;
-        Exit;
-    end;
-
-    if ParseBody(ABody, ContextsArr, ProjectsArr, ExtArr) then
-    begin
-        FBody := ABody;
-        FContexts.Clear;
-        FProjects.Clear;
-        FExtensions.Clear;
-        for I := 0 to Length(ContextsArr) - 1 do
-            FContexts.Add(ContextsArr[I]);
-        for I := 0 to Length(ProjectsArr) - 1 do
-            FProjects.Add(ProjectsArr[I]);
-        for I := 0 to Length(ExtArr) - 1 do
-            FExtensions.Add(ExtArr[I]);
-    end
-    else
-    begin
-        // fallback: keep body and clear tags
-        FBody := ABody;
-        FContexts.Clear;
-        FProjects.Clear;
-        FExtensions.Clear;
-    end;
+    FBody := ABody;
+    ParseBody(ABody, FContexts, FProjects, FExtensions);
 end;
 
 (*
@@ -737,27 +741,34 @@ end;
  *
  * @returns Context tags, without the `@`
  *)
-function TITodoItem.Contexts: TArray<string>;
+function TITodoItem.GetContexts: IStringList;
+begin
+    Result := GetTagList(FContexts);
+end;
+
+
+{ helper function for GetContexts and GetProjects
+------------------------------------------------------------------------------------------------------------------}
+function TITodoItem.GetTagList(ATrackedTagList: TList<TTrackedTag>): IStringList;
 var
     SetDict: TDictionary<string, Boolean>;
     I: Integer;
-    List: TList<string>;
 begin
-    SetDict := TDictionary<string, Boolean>.Create;
-    List := TList<string>.Create;
+    Assert(Assigned(ATrackedTagList));
+    //---
+    SetDict := TDictionary<string, Boolean>.Create;  //for duplicate detection
+    Result := TIStringList.Create;     //Ignore duplicates requires a sorted list - but we want to keep the order
     try
-        for I := 0 to FContexts.Count - 1 do
+        for I := 0 to ATrackedTagList.Count - 1 do
         begin
-            if not SetDict.ContainsKey(FContexts[I].Tag) then
+            if not SetDict.ContainsKey(ATrackedTagList[I].Tag) then
             begin
-                SetDict.Add(FContexts[I].Tag, True);
-                List.Add(FContexts[I].Tag);
+                SetDict.Add(ATrackedTagList[I].Tag, True);
+                Result.Add(ATrackedTagList[I].Tag);
             end;
         end;
-        Result := List.ToArray;
     finally
         SetDict.Free;
-        List.Free;
     end;
 end;
 
@@ -766,30 +777,45 @@ end;
  * If the context is already present, it will not be added.
  *
  * @param tag A valid context, without the `@`
+ * @return true if the context really had to be added (was not present)
  *)
-procedure TITodoItem.AddContext(const ATag: string);
+function TITodoItem.AddContext(const ATag: string): Boolean;
+begin
+    Result := AddTag('@', FContexts, ATag);
+end;
+
+{ helper function for AddContext and AddProject
+------------------------------------------------------------------------------------------------------------------}
+function TITodoItem.AddTag(const APrefix: Char; ATrackedTagList: TList<TTrackedTag>;
+  const ATag: string): Boolean;
 var
     I: Integer;
     Found: Boolean;
-    T: TTrackedTag;
+    TT: TTrackedTag;
 begin
+    Assert(Assigned(ATrackedTagList));
+    //---
     Found := False;
-    for I := 0 to FContexts.Count - 1 do
-        if FContexts[I].Tag = ATag then
+    for I := 0 to ATrackedTagList.Count - 1 do
+    begin
+        if ATrackedTagList[I].Tag = ATag then
         begin
             Found := True;
             Break;
         end;
+    end;
+
     if not Found then
     begin
-        T.Tag := ATag;
-        T.StartPos := Length(FBody); // zero-based position at end (Delphi Length is count)
-        FContexts.Add(T);
+        TT.Tag := ATag;
+        TT.StartPos := Length(FBody); // zero-based position at end (Delphi Length is count)
+        ATrackedTagList.Add(TT);
         if FBody = '' then
-            FBody := '@' + ATag
+          FBody := APrefix + ATag
         else
-            FBody := FBody + ' ' + '@' + ATag;
+          FBody := FBody + ' ' + APrefix + ATag;
     end;
+    Result := not Found;
 end;
 
 (*
@@ -800,25 +826,9 @@ end;
 procedure TITodoItem.RemoveContext(const ATag: string);
 var
     NewBody: string;
-    ContextArr: TArray<TTrackedTag>;
-    ProjectArr: TArray<TTrackedTag>;
-    ExtArr: TArray<TTrackedExtension>;
-    I: Integer;
 begin
     if RemoveTag(FBody, FContexts.ToArray, ATag, NewBody) then
-    begin
-        FBody := NewBody;
-        // reparse
-        if ParseBody(FBody, ContextArr, ProjectArr, ExtArr) then
-        begin
-            FContexts.Clear;
-            FProjects.Clear;
-            FExtensions.Clear;
-            for I := 0 to Length(ContextArr) - 1 do FContexts.Add(ContextArr[I]);
-            for I := 0 to Length(ProjectArr) - 1 do FProjects.Add(ProjectArr[I]);
-            for I := 0 to Length(ExtArr) - 1 do FExtensions.Add(ExtArr[I]);
-        end;
-    end;
+      SetBody(NewBody);   //this will call ReparseBody and set FContexts, FProjects, FExtensions
 end;
 
 (*
@@ -826,28 +836,9 @@ end;
  *
  * @returns Project tags, without the `+`
  *)
-function TITodoItem.Projects: TArray<string>;
-var
-    SetDict: TDictionary<string, Boolean>;
-    I: Integer;
-    List: TList<string>;
+function TITodoItem.GetProjects: IStringList;
 begin
-    SetDict := TDictionary<string, Boolean>.Create;
-    List := TList<string>.Create;
-    try
-        for I := 0 to FProjects.Count - 1 do
-        begin
-            if not SetDict.ContainsKey(FProjects[I].Tag) then
-            begin
-                SetDict.Add(FProjects[I].Tag, True);
-                List.Add(FProjects[I].Tag);
-            end;
-        end;
-        Result := List.ToArray;
-    finally
-        SetDict.Free;
-        List.Free;
-    end;
+    Result := GetTagList(FProjects);
 end;
 
 (*
@@ -855,30 +846,11 @@ end;
  * If the project is already present, it will not be added.
  *
  * @param tag A valid project, without the `+`
+ * @return true if the context really had to be added (was not present)
  *)
-procedure TITodoItem.AddProject(const ATag: string);
-var
-    I: Integer;
-    Found: Boolean;
-    P: TTrackedTag;
+function TITodoItem.AddProject(const ATag: string): Boolean;
 begin
-    Found := False;
-    for I := 0 to FProjects.Count - 1 do
-        if FProjects[I].Tag = ATag then
-        begin
-            Found := True;
-            Break;
-        end;
-    if not Found then
-    begin
-        P.Tag := ATag;
-        P.StartPos := Length(FBody);
-        FProjects.Add(P);
-        if FBody = '' then
-            FBody := '+' + ATag
-        else
-            FBody := FBody + ' ' + '+' + ATag;
-    end;
+    Result := AddTag('+', FProjects, ATag);
 end;
 
 (*
@@ -889,35 +861,30 @@ end;
 procedure TITodoItem.RemoveProject(const ATag: string);
 var
     NewBody: string;
-    ContextArr: TArray<TTrackedTag>;
-    ProjectArr: TArray<TTrackedTag>;
-    ExtArr: TArray<TTrackedExtension>;
-    I: Integer;
 begin
     if RemoveTag(FBody, FProjects.ToArray, ATag, NewBody) then
-    begin
-        FBody := NewBody;
-        // reparse
-        if ParseBody(FBody, ContextArr, ProjectArr, ExtArr) then
-        begin
-            FContexts.Clear;
-            FProjects.Clear;
-            FExtensions.Clear;
-            for I := 0 to Length(ContextArr) - 1 do FContexts.Add(ContextArr[I]);
-            for I := 0 to Length(ProjectArr) - 1 do FProjects.Add(ProjectArr[I]);
-            for I := 0 to Length(ExtArr) - 1 do FExtensions.Add(ExtArr[I]);
-        end;
-    end;
+      SetBody(NewBody);     //calls ParseBody...
 end;
 
 (*
- * Get all of the project tags on the task.
+ * Get all extensions (key-value-pairs) on the task.
  *
- * @returns Project tags, without the `+`
+ * @returns array of TTrackedExtension infos
  *)
-function TITodoItem.Extensions: TArray<TTrackedExtension>;
+function TITodoItem.GetExtensions: TExtensionArray;
 begin
     Result := FExtensions.ToArray;
+end;
+
+{ @returns a list of extension keys (ordered by keyname)
+------------------------------------------------------------------------------------------------------------------}
+function TITodoItem.GetExtensionKeys: IStringList;
+var
+    I: Integer;
+begin
+    Result := TIStringList.CreateIgnoreDuplicates;  //sorted
+    for I := 0 to FExtensions.Count - 1 do
+      Result.Add(FExtensions[I].Key);
 end;
 
 {
@@ -932,10 +899,6 @@ var
     FirstHandled: Boolean;
     StartPos, EndPos: Integer;
     Prefix, Suffix: string;
-    ContextArr: TArray<TTrackedTag>;
-    ProjectArr: TArray<TTrackedTag>;
-    ExtArr: TArray<TTrackedExtension>;
-    J: Integer;
     LowerKey: string;
 begin
     LowerKey := LowerCase(AKey);
@@ -989,27 +952,15 @@ begin
     end;
 
     if Found then
-    begin
-        // reparse
-        if ParseBody(FBody, ContextArr, ProjectArr, ExtArr) then
-        begin
-            FContexts.Clear;
-            FProjects.Clear;
-            FExtensions.Clear;
-            for J := 0 to Length(ContextArr) - 1 do FContexts.Add(ContextArr[J]);
-            for J := 0 to Length(ProjectArr) - 1 do FProjects.Add(ProjectArr[J]);
-            for J := 0 to Length(ExtArr) - 1 do FExtensions.Add(ExtArr[J]);
-        end;
-    end
+      ParseBody(FBody, FContexts, FProjects, FExtensions)  //reparse
     else
-    begin
-        AddExtension(LowerKey, AValue);
-    end;
+      AddExtension(LowerKey, AValue);
 end;
 
 {
   original:
     addExtension(key: string, value: string) {
+  Adds an extension (converts key to lower case.
 ------------------------------------------------------------------------------------------------------------------}
 procedure TITodoItem.AddExtension(const AKey: string; const AValue: string);
 var
@@ -1021,10 +972,7 @@ begin
     Ext.Value := AValue;
     Ext.StartPos := Length(FBody);
     FExtensions.Add(Ext);
-    if FBody = '' then
-      FBody := LowerKey + ':' + AValue
-    else
-      FBody := FBody + ' ' + LowerKey + ':' + AValue;
+    FBody := Cat(FBody, LowerKey + ':' + AValue, ' ');
 end;
 
 { 
@@ -1037,12 +985,6 @@ var
     Spans: TList<TSpan>;
     SpanItem: TSpan;
     NewBody: string;
-    Arr: TArray<TSpan>;
-    Sorted: TList<TSpan>;
-    J: Integer;
-    ContextArr: TArray<TTrackedTag>;
-    ProjectArr: TArray<TTrackedTag>;
-    ExtArr: TArray<TTrackedExtension>;
 begin
     Spans := TList<TSpan>.Create;
     try
@@ -1059,52 +1001,33 @@ begin
         if Spans.Count = 0 then
             Exit;
 
-        // Convert to array and sort descending
-        SetLength(Arr, Spans.Count);
-        for I := 0 to Spans.Count - 1 do
-            Arr[I] := Spans[I];
-
         // Sort descending by start
-        Sorted := TList<TSpan>.Create;
-        try
-            for I := 0 to Length(Arr) - 1 do
-                Sorted.Add(Arr[I]);
-
-            Sorted.Sort(TComparer<TSpan>.Construct(
-                function(const A, B: TSpan): Integer
-                begin
-                    if A.StartPos < B.StartPos then
-                        Result := 1
-                    else if A.StartPos > B.StartPos then
-                        Result := -1
-                    else
-                        Result := 0;
-                end));
-
-            SetLength(Arr, Sorted.Count);
-            for I := 0 to Sorted.Count - 1 do
-                Arr[I] := Sorted[I];
-        finally
-            Sorted.Free;
-        end;
+        SortSpansDesc(Spans);
 
         // cut out spans
-        NewBody := CutOutSpans(FBody, Arr);
-        FBody := NewBody;
-
-        // reparse
-        if ParseBody(FBody, ContextArr, ProjectArr, ExtArr) then
-        begin
-            FContexts.Clear;
-            FProjects.Clear;
-            FExtensions.Clear;
-            for J := 0 to Length(ContextArr) - 1 do FContexts.Add(ContextArr[J]);
-            for J := 0 to Length(ProjectArr) - 1 do FProjects.Add(ProjectArr[J]);
-            for J := 0 to Length(ExtArr) - 1 do FExtensions.Add(ExtArr[J]);
-        end;
+        NewBody := CutOutSpans(FBody, Spans);
+        SetBody(NewBody);   //reparse
     finally
         Spans.Free;
     end;
+end;
+
+
+{ Helper: Sort TSpan list descending by start. This modifies Spans
+------------------------------------------------------------------------------------------------------------------}
+procedure TITodoItem.SortSpansDesc(Spans: TList<TSpan>);
+begin
+    // Sort descending by start
+    Spans.Sort(TComparer<TSpan>.Construct(
+        function(const A, B: TSpan): Integer
+        begin
+            if A.StartPos < B.StartPos then
+                Result := 1
+            else if A.StartPos > B.StartPos then
+                Result := -1
+            else
+                Result := 0;
+        end));
 end;
 
 {
@@ -1128,79 +1051,64 @@ Mimic JS behaviour: remove each span and also remove the preceding character
 with 'end' being the exclusive end index.
 We apply spans in the incoming order; the caller usually sorts spans descending to avoid shifting.
 ------------------------------------------------------------------------------------------------------------------}
-function TITodoItem.CutOutSpans(const ABody: string; const ASpans: TArray<TSpan>): string;
+function TITodoItem.CutOutSpans(const ABody: string; const ASpans: TList<TSpan>): string;
 var
     I: Integer;
     ResultStr: string;
     StartZero, EndZero: Integer;
     RemoveStart, RemoveEnd: Integer;
-    SpansList: TList<TSpan>;
     Prefix, Suffix: string;
 begin
+    //Assert(ASpans.IsOrderedDesc);
+    //---
     ResultStr := ABody;
     // apply spans in order provided (caller should sort desc if needed), but to be safe apply descending
-    SpansList := TList<TSpan>.Create;
-    try
-        for I := 0 to Length(ASpans) - 1 do
-            SpansList.Add(ASpans[I]);
-        // sort descending by StartPos
-        SpansList.Sort(TComparer<TSpan>.Construct(
-            function(const A, B: TSpan): Integer
-            begin
-                if A.StartPos < B.StartPos then
-                    Result := 1
-                else if A.StartPos > B.StartPos then
-                    Result := -1
-                else
-                    Result := 0;
-            end));
 
-        for I := 0 to SpansList.Count - 1 do
-        begin
-            StartZero := SpansList[I].StartPos;
-            EndZero := SpansList[I].EndPos;
-            // remove preceding character when possible (JS used start-1)
-            RemoveStart := StartZero - 1;
-            if RemoveStart < 0 then
-                RemoveStart := 0;
-            RemoveEnd := EndZero; // exclusive
+    for I := 0 to ASpans.Count - 1 do
+    begin
+        StartZero := ASpans[I].StartPos;
+        EndZero := ASpans[I].EndPos;
+        // remove preceding character when possible (JS used start-1)
+        RemoveStart := StartZero - 1;
+        if RemoveStart < 0 then
+          RemoveStart := 0;
+        RemoveEnd := EndZero; // exclusive
 
-            // Delphi Copy uses 1-based indexing.
-            // prefix = Copy(ResultStr, 1, RemoveStart)
-            // suffix start (Delphi 1-based) = RemoveEnd + 1
-            if RemoveStart = 0 then
-                Prefix := ''
-            else
-                Prefix := Copy(ResultStr, 1, RemoveStart);
-            if RemoveEnd < Length(ResultStr) then
-                Suffix := Copy(ResultStr, RemoveEnd + 1, MaxInt)
-            else
-                Suffix := '';
-            ResultStr := Prefix + Suffix;
-        end;
+        // Delphi Copy uses 1-based indexing.
+        // prefix = Copy(ResultStr, 1, RemoveStart)
+        // suffix start (Delphi 1-based) = RemoveEnd + 1
+        if RemoveStart = 0 then
+          Prefix := ''
+        else
+          Prefix := Copy(ResultStr, 1, RemoveStart);
 
-        Result := ResultStr;
-    finally
-        SpansList.Free;
+        if RemoveEnd < Length(ResultStr) then
+          Suffix := Copy(ResultStr, RemoveEnd + 1, MaxInt)
+        else
+          Suffix := '';
+        ResultStr := Prefix + Suffix;
     end;
+
+    Result := ResultStr;
 end;
 
 {
 original:
 function removeTag(body: string, tags: TrackedTag[], tag: string): string | null {
 
-Returns null (false in Delphi with out param) when no spans to remove.
-Otherwise returns new body via out parameter and returns true.
+@returns false when no spans to remove,
+  otherwise returns new body via out parameter ResultNewBody and returns true.
 ------------------------------------------------------------------------------------------------------------------}
-function TITodoItem.RemoveTag(const ABody: string; const ATags: TArray<TTrackedTag>; const ATag: string; out ResultNewBody: string): Boolean;
+function TITodoItem.RemoveTag(const ABody: string; const ATags: TArray<TTrackedTag>; const ATag: string;
+  out ResultNewBody: string): Boolean;
 var
     I: Integer;
     Spans: TList<TSpan>;
     TagLen: Integer;
     TT: TTrackedTag;
-    Arr: TArray<TSpan>;
     S: TSpan;
 begin
+    ResultNewBody := '';
     Spans := TList<TSpan>.Create;
     try
         for I := 0 to Length(ATags) - 1 do
@@ -1221,13 +1129,10 @@ begin
             Exit;
         end;
 
-        // convert to array
-        SetLength(Arr, Spans.Count);
-        for I := 0 to Spans.Count - 1 do
-            Arr[I] := Spans[I];
-
         // The original cuts spans in order (they sort descending). We follow the same.
-        ResultNewBody := CutOutSpans(ABody, Arr);
+        SortSpansDesc(Spans);
+
+        ResultNewBody := CutOutSpans(ABody, Spans);
         Result := True;
     finally
         Spans.Free;

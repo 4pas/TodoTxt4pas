@@ -1,11 +1,42 @@
-unit Test.Mv.Todo.TodoItem.Extensions;
+unit Test.TodoTxt.TodoItem.Extensions;
+
+{
+  Copyright (c) 2025 marvotron.de
+
+  This Source Code is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+  This file incorporates work covered by the following copyright and
+  permission notice:
+
+    Original Copyright (c) 2011 John Hobbs
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    THE SOFTWARE
+}
 
 interface
 
 uses
     DUnitX.TestFramework,
     System.SysUtils,
-    Mv.Todo.TodoItem;
+    TodoTxt.TodoItem;
 
 type
     [TestFixture]
@@ -50,10 +81,10 @@ test('extensions › Reads extensions', (t) => {
 procedure TTestTodoItemExtensions.Extensions_ReadsExtensions;
 var
     Item: ITodoItem;
-    Exts: TArray<TTrackedExtension>;
+    Exts: TExtensionArray;
 begin
-    Item := TITodoItem.Create('due:today Hello there extensions:todo and color:red') as ITodoItem;
-    Exts := Item.Extensions;
+    Item := TITodoItem.Create('due:today Hello there extensions:todo and color:red');
+    Exts := Item.GetExtensions;
 
     Assert.AreEqual(3, Length(Exts));
     Assert.AreEqual('due', Exts[0].Key);
@@ -77,11 +108,11 @@ test('setExtension › Overwrites existing values', (t) => {
 procedure TTestTodoItemExtensions.SetExtension_OverwritesExistingValues;
 var
     Item: ITodoItem;
-    Exts: TArray<TTrackedExtension>;
+    Exts: TExtensionArray;
 begin
-    Item := TITodoItem.Create('Party like its due:2022-10-22') as ITodoItem;
+    Item := TITodoItem.Create('Party like its due:2022-10-22');
     Item.SetExtension('due', '1999-12-31');
-    Exts := Item.Extensions;
+    Exts := Item.GetExtensions;
 
     Assert.AreEqual(1, Length(Exts));
     Assert.AreEqual('due', Exts[0].Key);
@@ -102,11 +133,11 @@ test('setExtension › Removes additional values', (t) => {
 procedure TTestTodoItemExtensions.SetExtension_RemovesAdditionalValues;
 var
     Item: ITodoItem;
-    Exts: TArray<TTrackedExtension>;
+    Exts: TExtensionArray;
 begin
-    Item := TITodoItem.Create('My wall is painted the color:blue color:yellow @home for +housePainting') as ITodoItem;
+    Item := TITodoItem.Create('My wall is painted the color:blue color:yellow @home for +housePainting');
     Item.SetExtension('color', 'red');
-    Exts := Item.Extensions;
+    Exts := Item.GetExtensions;
 
     Assert.AreEqual(1, Length(Exts));
     Assert.AreEqual('color', Exts[0].Key);
@@ -130,11 +161,11 @@ test('setExtension › Not found', (t) => {
 procedure TTestTodoItemExtensions.SetExtension_NotFoundAddsNewExtension;
 var
     Item: ITodoItem;
-    Exts: TArray<TTrackedExtension>;
+    Exts: TExtensionArray;
 begin
-    Item := TITodoItem.Create('My wall is painted the color:blue @home for +housePainting') as ITodoItem;
+    Item := TITodoItem.Create('My wall is painted the color:blue @home for +housePainting');
     Item.SetExtension('finish', 'matte');
-    Exts := Item.Extensions;
+    Exts := Item.GetExtensions;
 
     Assert.AreEqual(2, Length(Exts));
     Assert.AreEqual('color', Exts[0].Key);
@@ -160,11 +191,11 @@ test('addExtension › Allows for multiple of the same key', (t) => {
 procedure TTestTodoItemExtensions.AddExtension_AllowsMultipleOfSameKey;
 var
     Item: ITodoItem;
-    Exts: TArray<TTrackedExtension>;
+    Exts: TExtensionArray;
 begin
-    Item := TITodoItem.Create('My wall is painted the color:blue') as ITodoItem;
+    Item := TITodoItem.Create('My wall is painted the color:blue');
     Item.AddExtension('color', 'red');
-    Exts := Item.Extensions;
+    Exts := Item.GetExtensions;
 
     Assert.AreEqual(2, Length(Exts));
     Assert.AreEqual('color', Exts[0].Key);
@@ -187,12 +218,12 @@ test('removeExtension › Removes the extension by key', (t) => {
 procedure TTestTodoItemExtensions.RemoveExtension_RemovesByKey;
 var
     Item: ITodoItem;
-    Exts: TArray<TTrackedExtension>;
+    Exts: TExtensionArray;
     BodyStr: string;
 begin
-    Item := TITodoItem.Create('My room:kitchen wall is painted color:blue and color:red') as ITodoItem;
+    Item := TITodoItem.Create('My room:kitchen wall is painted color:blue and color:red');
     Item.RemoveExtension('color');
-    Exts := Item.Extensions;
+    Exts := Item.GetExtensions;
 
     Assert.AreEqual(1, Length(Exts));
     Assert.AreEqual('room', Exts[0].Key);
@@ -217,12 +248,12 @@ test('removeExtension › Removes the extension by key and value', (t) => {
 procedure TTestTodoItemExtensions.RemoveExtension_RemovesByKeyAndValue;
 var
     Item: ITodoItem;
-    Exts: TArray<TTrackedExtension>;
+    Exts: TExtensionArray;
     BodyStr: string;
 begin
-    Item := TITodoItem.Create('My room:kitchen wall is painted color:blue and color:red') as ITodoItem;
+    Item := TITodoItem.Create('My room:kitchen wall is painted color:blue and color:red');
     Item.RemoveExtension('color', 'blue');
-    Exts := Item.Extensions;
+    Exts := Item.GetExtensions;
     Assert.AreEqual(2, Length(Exts));
     Assert.AreEqual('room', Exts[0].Key);
     Assert.AreEqual('kitchen', Exts[0].Value);

@@ -117,24 +117,24 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="..\src\Mv.LibBase.pas"/>
-        <DCCReference Include="..\src\Mv.StringList.pas"/>
-        <DCCReference Include="..\src\Mv.Todo.TodoItem.pas"/>
-        <DCCReference Include="..\src\Mv.Todo.TodoList.pas"/>
-        <DCCReference Include="Test.Mv.Todo.TodoItem.Body.pas"/>
-        <DCCReference Include="Test.Mv.Todo.TodoItem.Complete.pas"/>
-        <DCCReference Include="Test.Mv.Todo.TodoItem.Completed.pas"/>
-        <DCCReference Include="Test.Mv.Todo.TodoItem.Contexts.pas"/>
-        <DCCReference Include="Test.Mv.Todo.TodoItem.Created.pas"/>
-        <DCCReference Include="Test.Mv.Todo.TodoItem.Extensions.pas"/>
-        <DCCReference Include="Test.Mv.Todo.TodoItem.Inputs.pas"/>
-        <DCCReference Include="Test.Mv.Todo.TodoItem.Outputs.pas"/>
-        <DCCReference Include="Test.Mv.Todo.TodoItem.Priority.pas"/>
-        <DCCReference Include="Test.Mv.Todo.TodoItem.Projects.pas"/>
-        <DCCReference Include="Test.Mv.Todo.TodoList.Add.pas"/>
-        <DCCReference Include="Test.Mv.Todo.TodoList.Filter.pas"/>
-        <DCCReference Include="Test.Mv.Todo.TodoList.Inputs.pas"/>
-        <DCCReference Include="Test.Mv.Todo.TodoList.Outputs.pas"/>
+        <DCCReference Include="..\source\Mv.LibBase.pas"/>
+        <DCCReference Include="..\source\Mv.StringList.pas"/>
+        <DCCReference Include="..\source\TodoTxt.TodoItem.pas"/>
+        <DCCReference Include="..\source\TodoTxt.TodoList.pas"/>
+        <DCCReference Include="Test.TodoTxt.TodoItem.Body.pas"/>
+        <DCCReference Include="Test.TodoTxt.TodoItem.Complete.pas"/>
+        <DCCReference Include="Test.TodoTxt.TodoItem.Completed.pas"/>
+        <DCCReference Include="Test.TodoTxt.TodoItem.Contexts.pas"/>
+        <DCCReference Include="Test.TodoTxt.Todo.TodoItem.Created.pas"/>
+        <DCCReference Include="Test.TodoTxt.TodoItem.Extensions.pas"/>
+        <DCCReference Include="Test.TodoTxt.TodoItem.Inputs.pas"/>
+        <DCCReference Include="Test.TodoTxt.TodoItem.Outputs.pas"/>
+        <DCCReference Include="Test.TodoTxt.TodoItem.Priority.pas"/>
+        <DCCReference Include="Test.TodoTxt.TodoItem.Projects.pas"/>
+        <DCCReference Include="Test.TodoTxt.TodoList.Add.pas"/>
+        <DCCReference Include="Test.TodoTxt.TodoList.Filter.pas"/>
+        <DCCReference Include="Test.TodoTxt.TodoList.Inputs.pas"/>
+        <DCCReference Include="Test.TodoTxt.TodoList.Outputs.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
